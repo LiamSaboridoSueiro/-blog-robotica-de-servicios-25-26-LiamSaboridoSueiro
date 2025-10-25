@@ -11,7 +11,7 @@
   * [Control del Vuelo (Velocidad, Yaw y Altura)](#control-del-vuelo-velocidad-yaw-y-altura)
   * [Aterrizaje y Gestión de Batería](#aterrizaje-y-gestión-de-batería)
 - [Dificultades Encontradas](#dificultades-encontradas)
-- [Vídeo](#vídeo)
+- [Video](#video)
 
 </details>
 
