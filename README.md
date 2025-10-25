@@ -7,6 +7,7 @@ En este repositorio encontrarás toda la documentación y desarrollo de las prá
 ## Enlaces a los Blogs de las Prácticas
 
 - [Práctica 1: Localized Vacuum Cleaner](./Localized_Vacuum_Cleaner.md)
+- [Práctica 2: Rescue People](./Rescue_People.md)
 
 - **Más prácticas próximamente...**
 
