@@ -110,8 +110,7 @@ Una de las principales dificultades fue programar la práctica en mi ordenador, 
 También resultó complejo lograr un **vuelo estable durante la búsqueda**, especialmente al combinar la rotación periódica de la cámara ventral con los pequeños ajustes de yaw que realiza el controlador.  
 Fue necesario ajustar las ganancias `k_v`, `k_yaw` y `k_z` para evitar oscilaciones y lograr que el dron avanzara de forma suave entre waypoints.
 
-Finalmente, la **detección de rostros** presentó varios retos: el ángulo de la cámara y el movimiento del dron afectaban al rendimiento del clasificador Haar.  
-Lo solucioné rotando la imagen en distintos ángulos y filtrando detecciones cercanas para reducir falsos positivos.
+Finalmente, la **detección de rostros** presentó varios retos: el ángulo de la cámara y el movimiento del dron afectaban al rendimiento del clasificador Haar. Lo solucioné rotando la imagen en distintos ángulos y filtrando detecciones cercanas para reducir falsos positivos.
 
 
 
