@@ -10,7 +10,7 @@
   * [Máquina de estados](#máquina-de-estados)
   * [Algoritmo de aparcamiento](#algoritmo-de-aparcamiento)
 - [Dificultades encontradas](#dificultades-encontradas)
-- [Vídeo](#vídeo)
+- [Video](#video)
 
 </details>
 
