@@ -126,3 +126,4 @@ Disculpa la calidad de los videos, lo tuve que grabar con el móvil ya que mi or
 
 
 **Video**  
+[![Video de la Práctica 3 - AutoParking](https://img.youtube.com/vi/oAI35c9c5pI/0.jpg)](https://youtube.com/shorts/oAI35c9c5pI)
