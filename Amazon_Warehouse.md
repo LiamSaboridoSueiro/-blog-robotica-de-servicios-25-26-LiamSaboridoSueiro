@@ -14,6 +14,10 @@
 
 </details>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/dafce262-078c-44eb-945f-757b76a4ae03" width="900" height="600">
+</p>
+
 
 ## Objetivo
 
