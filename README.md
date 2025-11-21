@@ -9,6 +9,7 @@ En este repositorio encontrarás toda la documentación y desarrollo de las prá
 - [Práctica 1: Localized Vacuum Cleaner](./Localized_Vacuum_Cleaner.md)
 - [Práctica 2: Rescue People](./Rescue_People.md)
 - [Práctica 3: Aparcamiento Autónomo](./Autoparking.md)
+- [Práctica 4: Amazon Warehouse](./Amazon_Warehouse.md)
 
 - **Más prácticas próximamente...**
 
