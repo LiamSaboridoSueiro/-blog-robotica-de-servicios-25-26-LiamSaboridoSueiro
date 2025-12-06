@@ -71,8 +71,7 @@ El controlador de seguimiento también presentó retos, especialmente para evita
 
 
 ## Video
-
-Lo tuve que grabar con el ordenador de otra persona ya que mi ordenador no tiene la capacidad suficiente ejecutar la práctica, por eso hay una subida de calidad respecto a la práctica anterior.
+Disculpa la calidad de los videos, lo tuve que grabar con el móvil ya que mi ordenador no tiene la capacidad suficiente para grabar y ejecutar la simulación al mismo tiempo.
 
 
 **Estantería 1**  
