@@ -20,13 +20,10 @@
 ## Práctica 6 - Marker Visual Loc
 
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/3c1b089b-d558-4f60-9974-e04d17946d2d" width="900" height="600">
-</p>
-
 
 <p align="center">
-  <img src="URL_DE_TU_IMAGEN_AQUI" width="900" height="600">
+  <img src="<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/95110007-af74-4072-b8ec-dee830863fc0" />
+" width="900" height="600">
 </p>
 
 
