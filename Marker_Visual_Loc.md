@@ -113,5 +113,7 @@ La **navegación reactiva** presentó el reto de evitar que el robot se quedara 
 
 ## Video
 
+Disculpa la calidad de los videos, mi ordenador no da para mucho...
+
 **Video de la Práctica - Localización Visual con Marcadores**  
 [![Video de la Práctica - Marker Visual Loc](https://img.youtube.com/vi/xBiRHfzs4Zo/0.jpg)](https://youtu.be/xBiRHfzs4Zo)
