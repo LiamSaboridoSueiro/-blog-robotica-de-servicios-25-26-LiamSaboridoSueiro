@@ -12,6 +12,5 @@ En este repositorio encontrarás toda la documentación y desarrollo de las prá
 - [Práctica 4: Amazon Warehouse](./Amazon_Warehouse.md)
 - [Práctica 5: Laser Mapping](./Laser_Mapping.md)
 - [Práctica 6: Marker Visual Loc](./Marker_Visual_Loc.md)
-- 
-- **Más prácticas próximamente...**
+
 
