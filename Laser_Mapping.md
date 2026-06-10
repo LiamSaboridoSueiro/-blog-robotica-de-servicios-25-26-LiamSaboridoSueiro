@@ -1,17 +1,20 @@
 ## Índice
 <details>
-<summary>Práctica 5 – Laser Mapping</summary>
+<summary>Práctica 5 - Laser Mapping</summary>
 
+- [Errores comentados en tutoría](#errores-comentados-en-tutoría)
 - [Objetivo](#objetivo)
 - [Teoría y Funcionamiento](#teoría-y-funcionamiento)
   * [LIDAR y Adquisición de Datos](#lidar-y-adquisición-de-datos)
-  * [Mapa de Ocupación](#mapa-de-ocupación)
-  * [Algoritmo de Mapeo](#algoritmo-de-mapeo)
+  * [Mapa de Ocupación Probabilístico](#mapa-de-ocupación-probabilístico)
+  * [Implementación Bayesiana con Log-Odds](#implementación-bayesiana-con-log-odds)
+  * [Filtrado de Rayos y Observaciones Independientes](#filtrado-de-rayos-y-observaciones-independientes)
   * [Trazado de Láser con Bresenham](#trazado-de-láser-con-bresenham)
-  * [Exploración Reactiva / Máquina de Estados](#exploración-reactiva--máquina-de-estados)
-  * [Algoritmo de Navegacion](#algoritmo-de-navegacion)
+  * [Exploración y Navegación](#exploración-y-navegación)
+  * [Prueba con getPose3d y getOdom2](#prueba-con-getpose3d-y-getodom2)
 - [Dificultades Encontradas](#dificultades-encontradas)
 - [Video](#video)
+- [Mapa final](#mapa-final)
 
 </details>
 
@@ -21,79 +24,183 @@
 </p>
 
 
+## Errores comentados en tutoría
+
+Tras la revisión de la práctica, los errores principales estaban relacionados con la calidad del mapa generado. El primero fue que el robot se movía demasiado rápido, lo que hacía que las lecturas del láser se integrasen con poses poco estables y el mapa terminase saliendo torcido. Para corregirlo reduje las velocidades de navegación y separé las velocidades según el modo de movimiento: búsqueda de pared, seguimiento de pared, recuperación y barrido.
+
+El segundo punto fue que no convenía usar todos los rayos del láser en todas las iteraciones, porque muchas observaciones seguidas son casi idénticas y pueden hacer que el mapa se vuelva demasiado rígido o ruidoso. Para solucionarlo añadí un submuestreo con `PASO_LASER = 2`, filtros de lecturas inválidas y un umbral mínimo de movimiento antes de actualizar de nuevo el mapa.
+
+El tercer punto fue implementar realmente un mapa probabilístico usando Bayes. En la versión corregida no guardo simplemente estados discretos de libre/ocupado, sino una rejilla de log-odds (`log_grid`) que acumula evidencia de ocupación o de espacio libre y se satura para evitar una inercia excesiva.
+
 ## Objetivo
 
-El objetivo de esta práctica es diseñar un sistema capaz de explorar un entorno desconocido utilizando únicamente un sensor LIDAR, construyendo simultáneamente un mapa de ocupación del área visitada. El robot debe desplazarse de forma autónoma, detectando obstáculos, actualizando el mapa en tiempo real y tomando decisiones de navegación basadas en su percepción del entorno. El resultado esperado es un mapa fiable que represente correctamente las zonas libres y los obstáculos recorriendo el escenario propuesto.
+El objetivo de esta práctica es diseñar un sistema capaz de explorar un entorno desconocido utilizando un sensor LIDAR y construir simultáneamente un mapa de ocupación probabilístico. El robot debe desplazarse de forma autónoma, detectar obstáculos, actualizar el mapa en tiempo real y tomar decisiones de navegación basadas en la información del láser.
+
+Además, el enunciado propone comprobar cómo cambia la calidad del mapa al usar distintas fuentes de localización. Por eso en el vídeo incluyo ejecuciones usando `HAL.getPose3d()` y `HAL.getOdom2()`, para comparar el resultado con una pose más precisa frente a una odometría más ruidosa.
 
 ## Teoría y Funcionamiento
 
 ### LIDAR y Adquisición de Datos
 
-El sensor LIDAR es el dispositivo encargado de medir distancias entre el robot y los objetos del entorno mediante pulsos láser. Cada barrido proporciona una serie de lecturas angulares, donde cada valor representa la distancia medida en una dirección concreta alrededor del robot. Estas mediciones permiten identificar obstáculos, calcular su posición relativa y reconstruir progresivamente la geometría del escenario. El uso del LIDAR facilita la creación de un mapa preciso sin necesidad de visión artificial o sensores adicionales, siempre que el robot pueda estimar correctamente su posición y orientación en el mundo.
+El sensor LIDAR mide distancias entre el robot y los obstáculos del entorno. Cada lectura tiene una distancia y un ángulo relativo al robot. A partir de esos datos se calcula la posición del punto detectado en coordenadas locales y después se transforma a coordenadas globales usando la pose actual del robot (`x`, `y`, `yaw`).
 
-### Mapa de Ocupación
+En el código, esta conversión se realiza en `procesar_laser()`. Primero se obtiene el ángulo real de cada rayo con `angulo_rayo_laser()`, teniendo en cuenta si el láser devuelve 180, 360 u otro número de medidas. Después se pasa de coordenadas polares a cartesianas:
 
-El mapa de ocupación es la representación interna que utiliza el robot para “entender” el entorno que está explorando. En esta práctica se modela como una rejilla 2D (una matriz de 970 x 1500 celdas) donde cada celda almacena un valor entero que indica el estado de esa zona del mundo. En concreto, se usan tres niveles principales: **NO_VISIT (gris)** para las celdas que aún no han sido observadas, **VACIO (blanco)** para las que el LIDAR ha identificado como espacio libre y **OBSTACULO (negro)** para aquellas donde se ha detectado un impacto del láser contra un objeto. De esta forma, el mapa funciona como una imagen en escala de grises donde el negro representa obstáculos, el blanco zonas transitables y el gris áreas desconocidas.
+```python
+xl = distancia * math.cos(angulo_rayo)
+yl = distancia * math.sin(angulo_rayo)
+```
 
-Cada vez que el robot recibe nuevas lecturas del LIDAR, estas se convierten primero a coordenadas del mundo y después a coordenadas de píxel mediante la función `WebGUI.poseToMap`. Con esa información, se actualizan las celdas correspondientes del mapa: las posiciones por las que pasa el rayo hasta llegar al obstáculo se marcan como **VACIO**, mientras que el punto final donde el láser impacta se marca como **OBSTACULO**. Este proceso se repite en cada iteración, de modo que, a medida que el robot se mueve, el mapa va “pintando” el entorno explorado y construyendo una representación global del almacén que refleja cuáles zonas son accesibles y cuáles no.
+Y finalmente se rota y traslada ese punto al sistema global:
 
-Aunque para visualizar el mapa en WebGUI se utilizan valores discretos en escala de grises (gris, blanco y negro), internamente el gridmap se actualiza de forma probabilística siguiendo el modelo del sensor láser. Las celdas no se interpretan como estados binarios fijos, sino como probabilidades de ocupación que se combinan con las observaciones sucesivas.
+```python
+xg = x_rob + xl * cos_rob - yl * sin_rob
+yg = y_rob + xl * sin_rob + yl * cos_rob
+```
 
+### Mapa de Ocupación Probabilístico
 
-### Algoritmo de Mapeo
+El mapa se representa como una rejilla de `970 x 1500` celdas, que es el tamaño que espera `WebGUI.setUserMap()`. Aunque visualmente el mapa se ve como una imagen en escala de grises, internamente no trabajo directamente con valores blanco/gris/negro, sino con una matriz probabilística:
 
-El algoritmo de mapeo se basa en la interpretación probabilística de las lecturas del LIDAR, actualizando el gridmap a medida que el robot explora el entorno. El proceso comienza en la función `procesar_laser`, que recorre todas las mediciones del sensor, filtra valores inválidos y convierte cada lectura a coordenadas del mundo aplicando rotación y traslación según la pose actual del robot (`x_rob`, `y_rob`, `theta_rob`). Este modelo sensorial se asume axial, ya que el haz láser es estrecho y puede considerarse prácticamente lineal con respecto a la dirección de avance.
+```python
+log_grid = np.full((ALTO, ANCHO), LO_INICIAL, dtype=np.float32)
+```
 
-Una vez obtenidos los puntos en coordenadas globales, la función `actualizar_mapa` los proyecta sobre la rejilla probabilística utilizando `WebGUI.poseToMap`. Para cada rayo, se genera la trayectoria completa entre el robot y el punto de impacto mediante el algoritmo de Bresenham. Las celdas intermedias del rayo representan evidencia de espacio libre, mientras que la celda final representa evidencia de ocupación.
+Cada celda empieza con incertidumbre total, equivalente a probabilidad `0.5`. Si un rayo del láser atraviesa una celda, esa celda recibe evidencia de espacio libre. Si el rayo termina en una celda, esa celda recibe evidencia de obstáculo. Así, el mapa no depende de una sola observación, sino de la acumulación de muchas observaciones mientras el robot se mueve.
 
-La actualización de cada celda se realiza siguiendo la combinación bayesiana de evidencias: cuando el láser confirma que una celda es libre, su probabilidad de ocupación disminuye; cuando detecta un obstáculo, su probabilidad aumenta. Para evitar que el sistema se vuelva excesivamente inercial, se aplican mecanismos de saturación, de manera que las probabilidades se mantienen dentro de un rango limitado (p. ej. entre \( p_{\min} \) y \( p_{\max} \)), garantizando que observaciones nuevas puedan corregir evidencias previas.
+Para mostrar el mapa en la interfaz, convierto los log-odds de nuevo a probabilidad y después a escala de grises:
 
-En cada iteración del bucle principal, se procesan las nuevas mediciones, se aplican las actualizaciones probabilísticas sobre el gridmap y se envía el resultado a la interfaz gráfica mediante `WebGUI.setUserMap(grid)`. Con ello, el mapa se refina de manera incremental y coherente a medida que el robot recorre zonas previamente desconocidas, obteniendo finalmente una representación fiable del entorno.
+```python
+prob = 1.0 / (1.0 + np.exp(-log_grid))
+return ((1.0 - prob) * 255).astype(np.uint8)
+```
 
+Con esta conversión, las zonas libres tienden al blanco, las zonas desconocidas quedan en gris y los obstáculos tienden al negro.
+
+### Implementación Bayesiana con Log-Odds
+
+Para implementar Bayes uso la forma log-odds, que permite acumular evidencias mediante sumas. En vez de recalcular la probabilidad completa de cada celda en cada observación, sumo una evidencia positiva si el láser detecta ocupación y una evidencia negativa si detecta espacio libre:
+
+```python
+LO_INICIAL = 0.0
+LO_FREE = math.log(0.3 / 0.7)
+LO_OCC = math.log(0.7 / 0.3)
+```
+
+Cuando el rayo atraviesa una celda, actualizo esa celda como libre:
+
+```python
+log_grid[my, mx] = max(LO_MIN, log_grid[my, mx] + LO_FREE)
+```
+
+Cuando el rayo termina en un obstáculo, actualizo la celda final como ocupada:
+
+```python
+log_grid[oy, ox] = min(LO_MAX, log_grid[oy, ox] + LO_OCC)
+```
+
+También uso saturación con `LO_MIN` y `LO_MAX`. Esto es importante porque, si una celda acumula demasiada confianza, luego sería muy difícil corregirla aunque lleguen observaciones nuevas. Con la saturación evito que el mapa se vuelva excesivamente inercial.
+
+### Filtrado de Rayos y Observaciones Independientes
+
+Una de las correcciones importantes fue no procesar todos los puntos del láser sin control. En `procesar_laser()` uso `PASO_LASER = 2`, de forma que proceso un rayo de cada dos. Esto reduce ruido y coste de cálculo, pero mantiene suficiente información para construir el mapa.
+
+También descarto medidas inválidas:
+
+```python
+if math.isinf(distancia) or math.isnan(distancia):
+    continue
+if distancia <= min_rango or distancia >= distancia_maxima_util:
+    continue
+```
+
+Además, solo actualizo el mapa si el robot se ha movido lo suficiente desde la última actualización:
+
+```python
+return dist >= DIST_MIN or ang >= ANG_MIN
+```
+
+En mi caso uso `DIST_MIN = 0.10` metros y `ANG_MIN = 0.05` radianes. Esto evita meter muchas observaciones casi repetidas desde la misma pose, que podrían sobrecargar la evidencia bayesiana sin aportar información nueva.
 
 ### Trazado de Láser con Bresenham
 
-Para representar correctamente cada rayo del LIDAR sobre el mapa, es necesario saber qué celdas de la rejilla atraviesa el haz desde la posición del robot hasta el punto donde impacta. En lugar de aproximarlo de forma continua, se utiliza el algoritmo de Bresenham, que permite calcular de manera eficiente todos los píxeles que forman una línea entre dos puntos discretos.
+Para saber qué celdas atraviesa cada rayo del LIDAR, utilizo el algoritmo de Bresenham. Primero convierto la posición del robot y el punto final del rayo a píxeles del mapa mediante `WebGUI.poseToMap()`. Después genero la línea entre ambos puntos:
 
-En la implementación, la función `linea_bresenham(x1, y1, x2, y2)` recibe las coordenadas en píxeles del robot y del obstáculo (`(x1, y1)` y `(x2, y2)`) y devuelve una lista de pares `(x, y)` que representan todos los puntos intermedios de la línea. Internamente, se trabaja únicamente con operaciones enteras: se calcula la diferencia en X e Y, se determina el sentido de avance en cada eje y se actualiza un término de error (`error`) que decide cuándo incrementar X, Y o ambos. De esta forma, se recorre paso a paso la rejilla de píxeles hasta llegar al destino.
+```python
+celdas = linea_bresenham(robot_col, robot_fila, obs_col, obs_fila)
+```
 
-Esta lista de puntos se utiliza en `actualizar_mapa`: todos los puntos de la línea menos el último se marcan como **VACIO** (espacio libre), ya que representan el recorrido del rayo hasta el obstáculo, mientras que el último punto se marca como **OBSTACULO**. Gracias a Bresenham, el trazado de cada rayo es preciso y eficiente, y el mapa de ocupación refleja fielmente qué zonas están despejadas y dónde se encuentran los objetos detectados por el láser.
+Las celdas intermedias del rayo se actualizan como libres, porque el láser ha pasado por ellas antes de impactar. La celda final se actualiza como ocupada:
 
-### Exploración Reactiva / Máquina de Estados
+```python
+for col, fila in celdas[:-2]:
+    actualizar_log_libre(log_grid, col, fila)
 
-La lógica de exploración se plantea como un sistema reactivo controlado mediante una máquina de estados sencilla. La idea es que el robot tome decisiones de movimiento únicamente a partir de la información que le proporciona el LIDAR, sin depender de rutas prefijadas ni de waypoints globales. De este modo, el comportamiento se adapta en tiempo real a la presencia de obstáculos y a la estructura del entorno.
+actualizar_log_ocupado(log_grid, obs_col, obs_fila)
+```
 
-El diseño básico consta de al menos dos estados principales: **EXPLORAR** y **GIRAR**. En el estado **EXPLORAR**, el robot avanza hacia delante mientras realiza pequeños ajustes aleatorios en la velocidad angular para no seguir siempre una trayectoria perfectamente recta. Este comportamiento le permite ir “abriendo” el mapa y cubriendo distintas zonas del almacén. Cuando el LIDAR detecta un obstáculo a una distancia menor que un umbral de seguridad en la dirección frontal, la máquina de estados cambia al modo **GIRAR**. En este segundo estado, el robot detiene el avance lineal y ejecuta un giro controlado (por ejemplo, de unos 90 grados) hacia el lado más despejado según las lecturas del láser. Una vez completado el giro y orientado hacia una zona libre, la máquina vuelve al estado **EXPLORAR**. Con este esquema, el robot es capaz de navegar de forma autónoma evitando colisiones y, al mismo tiempo, ir construyendo el mapa de ocupación.
+Este paso es esencial para que el mapa no solo marque paredes, sino también el espacio libre que el robot ha observado.
 
-### Algoritmo de Navegación
+### Exploración y Navegación
 
-El algoritmo de navegación se basa en un patrón de exploración reactiva cuyo objetivo principal es visitar zonas aún no observadas del entorno, incrementando progresivamente la cobertura del mapa. En cada iteración se analizan las distancias medidas por el LIDAR en el eje frontal y en los laterales, aplicando un modelo sensorial axial (el haz se considera prácticamente lineal), lo que simplifica el cálculo geométrico del espacio libre. A partir de esa información, el robot decide el movimiento local: si el frente está despejado y el gridmap indica baja probabilidad de ocupación, el robot avanza con una velocidad lineal constante. Para evitar movimientos repetitivos y fomentar la visita de áreas desconocidas, se añade una pequeña variación angular que permite explorar trayectorias distintas y así cubrir mejor la superficie del entorno.
+La navegación final no es una exploración aleatoria simple. Implementé una máquina de estados más estructurada para conseguir recorridos lentos y repetibles, porque con movimientos rápidos el mapa se deformaba bastante.
 
-Cuando la probabilidad de ocupación en la dirección frontal supera un umbral (bien sea porque la distancia medida por el LIDAR es pequeña o porque el mapa acumulado indica alta evidencia de obstáculo), la máquina de estados activa la maniobra de giro. En ese momento el robot compara la probabilidad acumulada a izquierda y derecha —combinada mediante actualización bayesiana de evidencias— y selecciona el lado con menor ocupación estimada. El giro se realiza de forma controlada hasta completar aproximadamente un desfase angular fijo (en torno a 90°), tras el cual el robot vuelve al estado de avance.
+El flujo principal empieza orientando el robot hacia la derecha del mapa y buscando una pared. Cuando detecta una pared, gira para seguirla por la derecha. En el estado `FOLLOW_WALL`, el robot mantiene una distancia objetivo respecto a la pared usando sectores del láser: frontal, derecha y derecha-delante. Si encuentra una esquina, gira; si pierde la pared, se acerca de nuevo suavemente.
 
-Este enfoque permite una exploración autónoma basada en la incertidumbre del mapa: el robot prioriza avanzar hacia zonas poco observadas o con baja probabilidad de obstáculo, mientras evita colisiones y continúa ampliando el gridmap. La incorporación de mecanismos de saturación garantiza que la probabilidad almacenada no crezca indefinidamente, evitando excesiva inercia y permitiendo que nuevas observaciones del LIDAR modifiquen de forma razonable la confianza en cada celda. De este modo, navegación y mapeo probabilístico se ejecutan conjuntamente, logrando cubrir el entorno mientras el mapa se vuelve cada vez más fiable.
+También guardo un waypoint al empezar a seguir la pared. Cuando el robot se aleja de ese punto y más tarde vuelve a estar cerca, considero que ha cerrado una vuelta aproximada al perímetro. Entonces el robot vuelve al origen y arranca un barrido inicial por filas, con pasadas horizontales y desplazamientos hacia abajo. Esta parte está formada por estados como `PRE_SWEEP_ALIGN_TOP`, `PRE_SWEEP_FORWARD`, `PRE_SWEEP_ALIGN_DOWN` y `PRE_SWEEP_DISPLACE_DOWN`.
 
+Las velocidades están limitadas para mejorar la calidad del mapa. Algunos valores usados son:
+
+```python
+V_BUSCAR_PARED = 0.22
+V_SEGUIR_PARED = 0.17
+V_RECUPERAR_PARED = 0.12
+V_BARRIDO_INICIAL = 0.20
+V_DESPLAZAMIENTO_INICIAL = 0.16
+```
+
+Esta reducción de velocidad fue una de las correcciones más importantes, porque el mapa depende mucho de que la pose del robot y las lecturas del láser estén bien sincronizadas.
+
+### Prueba con getPose3d y getOdom2
+
+La versión principal del código usa `HAL.getPose3d()` para obtener la pose del robot durante el mapeo:
+
+```python
+p = HAL.getPose3d()
+```
+
+Esta pose es más precisa y permite construir un mapa más limpio. Para comprobar la sensibilidad del algoritmo a la localización, también probé el mismo enfoque cambiando la fuente de pose por odometría ruidosa, usando `HAL.getOdom2()` en las ejecuciones del vídeo. Con `getOdom2`, el mapa se deteriora: las paredes aparecen más desplazadas o torcidas porque pequeños errores de posición y orientación se acumulan al proyectar los rayos del láser sobre el gridmap.
+
+Esta comparación ayuda a ver una limitación importante del mapeo con posición conocida: el algoritmo de ocupación puede estar bien implementado, pero si la pose usada para insertar los rayos no es buena, el mapa final pierde calidad.
 
 ## Dificultades Encontradas
 
-Una de las principales dificultades fue programar la práctica en mi ordenador, como este lo he comprado en 2015 y la gpu no es muy potente. Iba muy laggeado en mi ordenador :(
+Una de las principales dificultades fue ejecutar y grabar la práctica en mi ordenador, porque la simulación iba bastante justa de rendimiento. Al moverse demasiado rápido, el robot generaba mapas torcidos, así que tuve que bajar velocidades y hacer la navegación más suave.
 
-Otra dificultad adicional fue conseguir un comportamiento de navegación reactivo estable, ya que pequeños cambios en las ganancias del movimiento podían hacer que el robot quedara atascado al girar repetidamente o que avanzara demasiado agresivo sin cubrir bien el entorno. Fue necesario ajustar los umbrales de detección del LIDAR y la duración de los giros hasta obtener un equilibrio aceptable entre exploración y seguridad.
+También fue complicado ajustar el mapa probabilístico. Si procesaba demasiados rayos o actualizaba muchas veces desde la misma posición, algunas zonas acumulaban demasiada confianza demasiado pronto. La solución fue combinar submuestreo del láser, umbrales de movimiento y saturación en los log-odds.
 
-También resultó complejo validar el trazado del mapa, ya que los errores en la transformación de coordenadas o en la línea de Bresenham no eran visibles al instante. En varias ocasiones fue necesario depurar comparando posiciones impresas por consola con las celdas actualizadas del mapa, para asegurar que la representación fuese coherente.
+Otra dificultad fue validar el trazado con Bresenham. Un pequeño error al transformar coordenadas del mundo a píxeles del mapa hace que las paredes aparezcan desplazadas, así que tuve que depurar la conversión con `WebGUI.poseToMap()` y comprobar que las celdas libres y ocupadas se actualizaban en el lugar correcto.
 
-Asimismo, ajustar los límites de saturación y los umbrales probabilísticos también requirió varios intentos, ya que afectaban directamente a la estabilidad del gridmap y al comportamiento de la navegación reactiva.
-
-
+Por último, la prueba con `getOdom2` dejó claro que el mapeo depende muchísimo de la localización. Con `getPose3d` el mapa queda más consistente; con odometría ruidosa se nota el drift y las paredes pierden alineación.
 
 ## Video
 
-Disculpa la calidad de los videos, lo tuve que grabar con el móvil ya que mi ordenador no tiene la capacidad suficiente para grabar y ejecutar la simulación al mismo tiempo.
+El vídeo nuevo incluye ejemplos de ejecución con `HAL.getPose3d()` y con `HAL.getOdom2()`. La idea es mostrar tanto el caso en el que el mapa se genera con una pose precisa como el caso en el que se usa odometría más ruidosa y el mapa se deteriora.
 
-[![Vídeo Laser Mapping](https://img.youtube.com/vi/EFyaFYUgBHA/0.jpg)](https://youtube.com/shorts/EFyaFYUgBHA)
+[![Vídeo Laser Mapping](https://img.youtube.com/vi/w9Wd5KccDnw/0.jpg)](https://youtu.be/w9Wd5KccDnw)
 
-## Mapa final:
+## Mapa final
 
-<img width="702" height="412" alt="image" src="https://github.com/user-attachments/assets/a0733e27-6920-4461-9624-b8d2515e9ad8" />
+En las siguientes imágenes se ve el resultado guardado en la carpeta `resources` del blog: el recorrido utilizado durante la exploración y el mapa final generado.
 
+<p align="center">
+  <img src="resources/recorrido.png" width="450">
+  <br>
+  <em>Recorrido de exploración.</em>
+</p>
 
+<p align="center">
+  <img src="resources/mapa_final.png" width="450">
+  <br>
+  <em>Mapa final de ocupación probabilístico.</em>
+</p>
