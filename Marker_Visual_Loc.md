@@ -54,9 +54,9 @@ Para visualizar las detecciones, dibujo un recuadro verde alrededor de cada marc
 
 ### Estimación de Pose 3D mediante PnP
 
-Una vez detectadas las esquinas de un marcador en la imagen, el siguiente paso es determinar dónde está ese marcador en el espacio 3D respecto a la cámara. Para esto utilizo el algoritmo **PnP (Perspective-n-Point)** mediante `cv2.solvePnP()`. La idea básica es: si conozco las dimensiones reales del marcador, 0.24 metros de lado para la zona negra utilizada en el ejercicio, y veo cómo aparece en la imagen, puedo calcular su posición y orientación en el espacio.
+Una vez detectadas las esquinas de un marcador en la imagen, el siguiente paso es determinar dónde está ese marcador en el espacio 3D respecto a la cámara. Para esto utilizo el algoritmo **PnP (Perspective-n-Point)** mediante `cv2.solvePnP()` con el flag `cv2.SOLVEPNP_IPPE_SQUARE`, que está pensado específicamente para marcadores planos cuadrados. La idea básica es: si conozco las dimensiones reales del marcador, 0.24 metros de lado para la zona negra utilizada en el ejercicio, y veo cómo aparece en la imagen, puedo calcular su posición y orientación en el espacio.
 
-El PnP necesita dos cosas: los puntos 3D del marcador en su propio sistema de coordenadas y los puntos 2D correspondientes en la imagen. En el código genero las cuatro esquinas 3D del cuadrado centradas en el marcador, usando `radio_marcador = 0.12`, y las comparo con las esquinas detectadas por `pyapriltags`. Con esta información, `solvePnP()` devuelve un vector de rotación y un vector de traslación.
+El PnP necesita dos cosas: los puntos 3D del marcador en su propio sistema de coordenadas y los puntos 2D correspondientes en la imagen. En el código genero las cuatro esquinas 3D del cuadrado centradas en el marcador, usando `radio_marcador = 0.12`, y las comparo con las esquinas detectadas por `pyapriltags`. Este orden de esquinas encaja con `SOLVEPNP_IPPE_SQUARE`, y con esta información `solvePnP()` devuelve un vector de rotación y un vector de traslación.
 
 La matriz intrínseca de la cámara se construye a partir del tamaño de la imagen: uso como distancia focal el ancho de la imagen, el centro óptico en el centro del frame y coeficientes de distorsión nulos. Con esto se obtiene una estimación suficientemente buena para transformar las esquinas 2D en una pose 3D relativa.
 
