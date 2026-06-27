@@ -11,7 +11,7 @@
   * [Filtrado de Rayos y Observaciones Independientes](#filtrado-de-rayos-y-observaciones-independientes)
   * [Trazado de Láser con Bresenham](#trazado-de-láser-con-bresenham)
   * [Exploración y Navegación](#exploración-y-navegación)
-  * [Prueba con getPose3d y getOdom2](#prueba-con-getpose3d-y-getodom2)
+  * [Prueba con getPose3d y getOdom](#prueba-con-getpose3d-y-getodom)
 - [Dificultades Encontradas](#dificultades-encontradas)
 - [Video](#video)
 - [Mapa final](#mapa-final)
@@ -36,7 +36,7 @@ El tercer punto fue implementar realmente un mapa probabilístico usando Bayes. 
 
 El objetivo de esta práctica es diseñar un sistema capaz de explorar un entorno desconocido utilizando un sensor LIDAR y construir simultáneamente un mapa de ocupación probabilístico. El robot debe desplazarse de forma autónoma, detectar obstáculos, actualizar el mapa en tiempo real y tomar decisiones de navegación basadas en la información del láser.
 
-Además, el enunciado propone comprobar cómo cambia la calidad del mapa al usar distintas fuentes de localización. Por eso en el vídeo incluyo ejecuciones usando `HAL.getPose3d()` y `HAL.getOdom2()`, para comparar el resultado con una pose más precisa frente a una odometría más ruidosa.
+Además, el enunciado propone comprobar cómo cambia la calidad del mapa al usar distintas fuentes de localización. Por eso en el vídeo incluyo una ejecución usando `HAL.getPose3d()` y tres ejecuciones usando `HAL.getOdom()` con distintos niveles de ruido configurados en el mapa: low, medium y high noise.
 
 ## Teoría y Funcionamiento
 
@@ -161,17 +161,31 @@ V_DESPLAZAMIENTO_INICIAL = 0.16
 
 Esta reducción de velocidad fue una de las correcciones más importantes, porque el mapa depende mucho de que la pose del robot y las lecturas del láser estén bien sincronizadas.
 
-### Prueba con getPose3d y getOdom2
+En la versión con odometría ruidosa separo la pose usada para mapear de la pose usada para navegar. El gridmap se actualiza con `HAL.getOdom()`, pero la máquina de estados recibe también `HAL.getPose3d()` para mantener el recorrido estable y poder comparar mejor los mapas resultantes:
 
-La versión principal del código usa `HAL.getPose3d()` para obtener la pose del robot durante el mapeo:
+```python
+p = HAL.getOdom()
+p_real = HAL.getPose3d()
+maquina_estados(p, laser, p_real)
+```
+
+### Prueba con getPose3d y getOdom
+
+Para tener una referencia limpia, primero pruebo el algoritmo usando `HAL.getPose3d()` para obtener la pose del robot durante el mapeo:
 
 ```python
 p = HAL.getPose3d()
 ```
 
-Esta pose es más precisa y permite construir un mapa más limpio. Para comprobar la sensibilidad del algoritmo a la localización, también probé el mismo enfoque cambiando la fuente de pose por odometría ruidosa, usando `HAL.getOdom2()` en las ejecuciones del vídeo. Con `getOdom2`, el mapa se deteriora: las paredes aparecen más desplazadas o torcidas porque pequeños errores de posición y orientación se acumulan al proyectar los rayos del láser sobre el gridmap.
+Esta pose es más precisa y permite construir un mapa más limpio. Después pruebo el mismo algoritmo usando `HAL.getOdom()` para insertar los rayos en el mapa:
 
-Esta comparación ayuda a ver una limitación importante del mapeo con posición conocida: el algoritmo de ocupación puede estar bien implementado, pero si la pose usada para insertar los rayos no es buena, el mapa final pierde calidad.
+```python
+p = HAL.getOdom()
+```
+
+Actualmente solo existe `HAL.getOdom()`, y el nivel de ruido se cambia cargando mapas/configuraciones distintas del ejercicio. Por eso los resultados se comparan como `GetOdom Low Noise`, `GetOdom Medium Noise` y `GetOdom High Noise`.
+
+Esta comparación ayuda a ver una limitación importante del mapeo con posición conocida: el algoritmo de ocupación puede estar bien implementado, pero si la pose usada para insertar los rayos no es buena, el mapa final pierde calidad. A medida que aumenta el ruido en `getOdom`, las paredes aparecen más desplazadas o torcidas porque pequeños errores de posición y orientación se acumulan al proyectar los rayos del láser sobre el gridmap.
 
 ## Dificultades Encontradas
 
@@ -181,26 +195,43 @@ También fue complicado ajustar el mapa probabilístico. Si procesaba demasiados
 
 Otra dificultad fue validar el trazado con Bresenham. Un pequeño error al transformar coordenadas del mundo a píxeles del mapa hace que las paredes aparezcan desplazadas, así que tuve que depurar la conversión con `WebGUI.poseToMap()` y comprobar que las celdas libres y ocupadas se actualizaban en el lugar correcto.
 
-Por último, la prueba con `getOdom2` dejó claro que el mapeo depende muchísimo de la localización. Con `getPose3d` el mapa queda más consistente; con odometría ruidosa se nota el drift y las paredes pierden alineación.
+Por último, la prueba con `getOdom` dejó claro que el mapeo depende muchísimo de la localización. Con `getPose3d` el mapa queda más consistente; con odometría ruidosa se nota el drift y las paredes pierden alineación, especialmente en los casos medium y high noise.
 
 ## Video
 
-El vídeo nuevo incluye ejemplos de ejecución con `HAL.getPose3d()` y con `HAL.getOdom2()`. La idea es mostrar tanto el caso en el que el mapa se genera con una pose precisa como el caso en el que se usa odometría más ruidosa y el mapa se deteriora.
+El vídeo nuevo incluye las cuatro formas de probar el código del ejercicio:
 
-[![Vídeo Laser Mapping](https://img.youtube.com/vi/w9Wd5KccDnw/0.jpg)](https://youtu.be/w9Wd5KccDnw)
+- [00:06 - GetPose3D](https://www.youtube.com/watch?v=6Oi5-tQqboQ&t=6s)
+- [01:50 - GetOdom Low Noise](https://www.youtube.com/watch?v=6Oi5-tQqboQ&t=110s)
+- [03:40 - GetOdom Medium Noise](https://www.youtube.com/watch?v=6Oi5-tQqboQ&t=220s)
+- [05:30 - GetOdom High Noise](https://www.youtube.com/watch?v=6Oi5-tQqboQ&t=330s)
+
+[![Vídeo Laser Mapping](https://img.youtube.com/vi/6Oi5-tQqboQ/0.jpg)](https://www.youtube.com/watch?v=6Oi5-tQqboQ)
 
 ## Mapa final
 
-En las siguientes imágenes se ve el resultado guardado en la carpeta `resources` del blog: el recorrido utilizado durante la exploración y el mapa final generado.
+En las siguientes imágenes se ven los resultados guardados en la carpeta `resources/resultados_P5` del blog. La comparación muestra cómo el mapa se degrada progresivamente al aumentar el ruido de la odometría.
 
 <p align="center">
-  <img src="resources/recorrido.png" width="450">
+  <img src="resources/resultados_P5/Getpose3d.png" width="450">
   <br>
-  <em>Recorrido de exploración.</em>
+  <em>Resultado usando HAL.getPose3d().</em>
 </p>
 
 <p align="center">
-  <img src="resources/mapa_final.png" width="450">
+  <img src="resources/resultados_P5/GetOdom_low_noise.png" width="450">
   <br>
-  <em>Mapa final de ocupación probabilístico.</em>
+  <em>Resultado usando HAL.getOdom() con low noise.</em>
+</p>
+
+<p align="center">
+  <img src="resources/resultados_P5/GetOdom_medium_noise.png" width="450">
+  <br>
+  <em>Resultado usando HAL.getOdom() con medium noise.</em>
+</p>
+
+<p align="center">
+  <img src="resources/resultados_P5/GetOdom_high_noise.png" width="450">
+  <br>
+  <em>Resultado usando HAL.getOdom() con high noise.</em>
 </p>
