@@ -14,6 +14,7 @@
   * [Navegación por Tramos y Giros](#navegación-por-tramos-y-giros)
   * [Bucle Principal de Localización](#bucle-principal-de-localización)
 - [Dificultades y Decisiones de Diseño](#dificultades-y-decisiones-de-diseño)
+- [Resultado](#resultado)
 - [Video](#video)
 
 </details>
@@ -155,6 +156,18 @@ Otra dificultad fue elegir correctamente entre varias detecciones simultáneas. 
 La fusión con odometría también fue importante. No quería usar la odometría como posición absoluta, porque el propio enunciado indica que debe utilizarse solo para incrementos. Por eso, el código guarda la última lectura odométrica válida y únicamente suma las diferencias de movimiento cuando no hay una baliza visible.
 
 En la navegación opté por un comportamiento simple y controlado: avanzar una distancia fija y después girar un ángulo fijo. No es una navegación óptima, pero sí suficiente para esta práctica, ya que permite que el robot recorra el entorno y vaya encontrando marcadores desde distintas posiciones.
+
+## Resultado
+
+En la siguiente imagen se muestra una ejecución más prolongada, dejando al robot moverse durante un rato con una trayectoria de tipo estrella. La idea de esta prueba era observar cómo reaccionaba el algoritmo de localización durante más tiempo, alternando momentos con detección visual de AprilTags y momentos en los que la posición se mantenía mediante odometría incremental.
+
+<p align="center">
+  <img src="resources/p6.png" width="650">
+  <br>
+  <em>Ejecución prolongada de la localización visual con trayectoria de estrella.</em>
+</p>
+
+El resultado muestra que el algoritmo acaba encontrándose y corrigiendo su estimación cuando vuelve a detectar balizas, pero no mantiene una posición estricta y perfecta en todo momento. Esto es esperable: cuando no hay marcadores visibles, la estimación depende de la odometría incremental y puede acumular cierto error hasta que aparece una nueva referencia visual.
 
 ## Video
 
