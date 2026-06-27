@@ -3,7 +3,7 @@
 <details>
 <summary>Práctica 6</summary>
 
-- [Errores comentados en tutoría](#errores-comentados-en-tutoría)
+- [Errores comentados en revisión de enero](#errores-comentados-en-revisión-de-enero)
 - [Objetivo](#objetivo)
   * [Detección de Marcadores AprilTag](#detección-de-marcadores-apriltag)
   * [Estimación de Pose 3D mediante PnP](#estimación-de-pose-3d-mediante-pnp)
@@ -27,7 +27,7 @@
 </p>
 
 
-## Errores comentados en tutoría
+## Errores comentados en revisión de enero
 
 Tras la revisión de la práctica, el principal error detectado fue que el robot no seleccionaba correctamente el QR/AprilTag más cercano cuando había varias balizas visibles a la vez. El enunciado indica que, en ese caso, conviene quedarse con la estimación obtenida desde la baliza más cercana, ya que será la que aparece más grande en la imagen y normalmente proporciona una medida más fiable.
 
@@ -92,7 +92,7 @@ Así, cada estimación visual se convierte en una posible pose global del robot.
 
 ### Selección de la Baliza más Cercana
 
-Cuando el robot detecta múltiples marcadores simultáneamente, necesita decidir cuál usar para actualizar su posición. Esta fue precisamente una de las correcciones principales tras la tutoría: el criterio correcto no era priorizar ciertos IDs ni quedarse con el marcador más centrado, sino seleccionar la baliza más cercana.
+Cuando el robot detecta múltiples marcadores simultáneamente, necesita decidir cuál usar para actualizar su posición. Esta fue precisamente una de las correcciones principales tras la revisión de enero: el criterio correcto no era priorizar ciertos IDs ni quedarse con el marcador más centrado, sino seleccionar la baliza más cercana.
 
 Para ello, el programa procesa cada detección individualmente y guarda una tupla con:
 

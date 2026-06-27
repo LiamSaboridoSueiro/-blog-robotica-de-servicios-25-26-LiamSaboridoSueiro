@@ -2,7 +2,7 @@
 <details>
 <summary>Práctica 5 - Laser Mapping</summary>
 
-- [Errores comentados en tutoría](#errores-comentados-en-tutoría)
+- [Errores comentados en revisión de enero](#errores-comentados-en-revisión-de-enero)
 - [Objetivo](#objetivo)
 - [Teoría y Funcionamiento](#teoría-y-funcionamiento)
   * [LIDAR y Adquisición de Datos](#lidar-y-adquisición-de-datos)
@@ -24,7 +24,7 @@
 </p>
 
 
-## Errores comentados en tutoría
+## Errores comentados en revisión de enero
 
 Tras la revisión de la práctica, los errores principales estaban relacionados con la calidad del mapa generado. El primero fue que el robot se movía demasiado rápido, lo que hacía que las lecturas del láser se integrasen con poses poco estables y el mapa terminase saliendo torcido. Para corregirlo reduje las velocidades de navegación y separé las velocidades según el modo de movimiento: búsqueda de pared, seguimiento de pared, recuperación y barrido.
 
