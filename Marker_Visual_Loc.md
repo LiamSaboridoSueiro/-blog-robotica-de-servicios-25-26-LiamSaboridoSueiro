@@ -173,5 +173,10 @@ El resultado muestra que el algoritmo acaba encontrándose y corrigiendo su esti
 
 El vídeo nuevo incluye 4 ejemplos de ejecución. En ellos se puede ver cómo el robot detecta AprilTags, selecciona la baliza más cercana cuando hay varias visibles y continúa estimando su pose con odometría incremental cuando deja de ver marcadores. Para generar recorridos distintos en las grabaciones, en algunos ejemplos modifiqué temporalmente los grados del giro, manteniendo la misma lógica de navegación por tramos y giros.
 
+- [00:05 - Ejemplo 1](https://youtu.be/Vjsi0aLf1Cg?t=5)
+- [01:23 - Ejemplo 2](https://youtu.be/Vjsi0aLf1Cg?t=83)
+- [03:10 - Ejemplo 3](https://youtu.be/Vjsi0aLf1Cg?t=190)
+- [05:17 - Ejemplo 4 con solvePnP iterative](https://youtu.be/Vjsi0aLf1Cg?t=317)
+
 **Video de la Práctica - Localización Visual con Marcadores**  
 [![Video de la Práctica - Marker Visual Loc](https://img.youtube.com/vi/Vjsi0aLf1Cg/0.jpg)](https://youtu.be/Vjsi0aLf1Cg)
